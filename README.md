@@ -40,7 +40,8 @@ to JavaScript and support for LHA & zlib compressed formats was added (ayumi_ada
 
 For the handling of LHA and zlib compressed formats the 3rd party 
 lh4.min.js (https://github.com/erlandranvinge/lh4.js) and pako_inflate.min.js (https://github.com/nodeca/pako) libs 
-are used. (For ease of use they are currently inlined directly into the backend_ayumi.js  (see makeEmscripten.bat).
+are used. (For ease of use they are currently inlined directly into the backend_ayumi.js  (see makeEmscripten.bat). 
+Reminder: lh4.min.js was patched to allow for the data extraction even without having the correct file name. 
 
 ## Howto build
 
