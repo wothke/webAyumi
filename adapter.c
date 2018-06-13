@@ -34,6 +34,7 @@ static int16_t _soundBuffer[BUFLEN];
 static uint32_t _numberOfSamplesRendered= 0;
 
 // output the realtime volume info
+static int32_t _debugEnabled;
 static int16_t _voice1Buffer[BUFLEN];
 static int16_t _voice2Buffer[BUFLEN];
 static int16_t _voice3Buffer[BUFLEN];
@@ -114,6 +115,26 @@ static uint32_t EMSCRIPTEN_KEEPALIVE loadSongFile(uint32_t sampleRate, void * in
 	return 0;
 }
 
+static int16_t getVoiceOutput(struct ayumi* ay, int voice) {
+	int noise = ay->noise & 1;
+	int envelope = ay->envelope;
+	
+	int out = (ay->channels[voice].tone | ay->channels[voice].t_off) & (noise | ay->channels[voice].n_off);
+	out *= ay->channels[voice].e_on ? envelope : ay->channels[voice].volume * 2 + 1;
+
+	// ignore stereo panning
+	double d= ay->dac_table[out];	// range is 0..1 with "center line" at 0	
+		
+	return d * 0xffff - 0x8000;
+}
+
+
+static uint32_t setOptions(uint32_t debug)  __attribute__((noinline));
+static uint32_t EMSCRIPTEN_KEEPALIVE setOptions(uint32_t debug) {
+	_debugEnabled= debug;
+	return 0;
+}
+
 static uint32_t computeAudioSamples()  __attribute__((noinline));
 static uint32_t EMSCRIPTEN_KEEPALIVE computeAudioSamples() {
 	_numberOfSamplesRendered= 0;
@@ -125,25 +146,14 @@ static uint32_t EMSCRIPTEN_KEEPALIVE computeAudioSamples() {
 		int16_t* outV1= _voice1Buffer;
 		int16_t* outV2= _voice2Buffer;
 		int16_t* outV3= _voice3Buffer;
-		int16_t v1, v2, v3;
-		v1=v2=v3= 0;
-		
 		
 		double isr_step = t.frame_rate / t.sample_rate;
 		double isr_counter = 1;
 		while ((_numberOfSamplesRendered < NUM_SAMPLES) && (frame < t.frame_count)) {
 			isr_counter += isr_step;
 			if (isr_counter >= 1) {
-				isr_counter -= 1;
-				
-				int* r= &t.frame_data[frame * 16];
-				
-				// quite a waste of space...
-				v1= ((int32_t)(0xffff/0xf*(r[8] & 0xf))) - 0x8000;
-				v2= ((int32_t)(0xffff/0xf*(r[9] & 0xf))) - 0x8000;
-				v3= ((int32_t)(0xffff/0xf*(r[10] & 0xf))) - 0x8000;				
-				
-				updateAyumiState(&ay, r);
+				isr_counter -= 1;				
+				updateAyumiState(&ay, &t.frame_data[frame * 16]);
 				frame += 1;
 			}
 			ayumi_process(&ay);
@@ -151,10 +161,11 @@ static uint32_t EMSCRIPTEN_KEEPALIVE computeAudioSamples() {
 				ayumi_remove_dc(&ay);
 			}
 			
-			outV1[_numberOfSamplesRendered]= v1;
-			outV2[_numberOfSamplesRendered]= v2;
-			outV3[_numberOfSamplesRendered]= v3;
-			
+			if (_debugEnabled) {			
+				outV1[_numberOfSamplesRendered]= getVoiceOutput(&ay, 0);
+				outV2[_numberOfSamplesRendered]= getVoiceOutput(&ay, 1);
+				outV3[_numberOfSamplesRendered]= getVoiceOutput(&ay, 2);;
+			}
 			out[0] = (int16_t) (ay.left * t.volume * 0x7fff);
 			out[1] = (int16_t) (ay.right * t.volume * 0x7fff);
 			out += 2;

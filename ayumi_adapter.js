@@ -355,6 +355,11 @@ AyumiBackendAdapter= (function(){ var $this = function () {
 			if (typeof options.timeout != 'undefined') {
 				ScriptNodePlayer.getInstance().setPlaybackTimeout(options.timeout*1000);
 			}
+			var debug= false;
+			if (typeof options.debug != 'undefined') {
+				debug= options.debug;
+			}
+			var ret = this.Module.ccall('setOptions', 'number', ['number'], [debug]);
 			return 0;
 		},
 		teardown: function() {

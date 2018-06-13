@@ -121,6 +121,7 @@ function init() {
 							
 						var options= {};
 						options.timeout= timeout;
+						options.debug= true;		// output additional data
 											
 						return [url, options];
 					} else {
@@ -128,7 +129,8 @@ function init() {
 						return [someSong, new Object()];
 					}
 				}),
-				0, -1
+				0, -1,
+				{ debug: true }
 			);
 
 	// limit rendering to 50% of the available time (ayumi is fast so there is no need ..)
