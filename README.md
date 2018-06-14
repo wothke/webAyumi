@@ -49,7 +49,7 @@ The code uses converters for various AY-3-8910 and YM2149 related input music fo
 TEXT format (not related to Vortex Tracker II format) used by the player:
 
 .ym: Limited to YM5 and YM6 formats - without support for the "special extensions" like digi-drums, etc (see http://leonard.oxg.free.fr/ymformat.html)
-.fym: another YM register-recording format used here http://ym.mmcm.ru
+.fym: another YM register-recording format used here http://ym.mmcm.ru (2 chip configurations - see files marked as 'ts' - are not implemented)
 .psg: recorded in ZX Spectrum emulator 'Z80 Stealth' 
 .afx: sound effects from "AYFX Editor v0.6" (see https://shiru.untergrund.net/software.shtml)
 
