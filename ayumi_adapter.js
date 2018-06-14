@@ -74,6 +74,10 @@ FymConverter= (function(){ var $this = function (caller) {
 	}; 
 	extend(ConverterBase, $this, {
 		convert: function(data) {		
+			// known limitation: there seem to be .fym files for 2-chip configurations 
+			// see files marked as 'ts' on http://ym.mmcm.ru - respective support HAS NOT
+			// been implemented here (I did not find any 'ts' songs that seem to be worth the trouble)
+
 			if (typeof window.pako == 'undefined') { alert("ERROR unresolved pako library dependency"); }			
 			
 			var fymData=  window.pako.inflate(new Uint8Array(data));
@@ -100,7 +104,7 @@ FymConverter= (function(){ var $this = function (caller) {
 			for (var i= 0; i<frameCount; i++) {
 				frameData.push(new Array(16).fill(0));
 			}
-			for (var i= 0; i<14; i++) {		// i.e. 0 - 13
+			for (var i= 0; i<14; i++) {
 				for (var j= 0; j<frameCount; j++) {
 					frameData[j][i] = fymData[fymHeaderSize + i * frameCount + j];
 				}
@@ -122,16 +126,26 @@ YmConverter= (function(){ var $this = function (caller) {
 			if ((id == '-lh') || (id == '-lz')) {
 				var lha = new LhaReader(new LhaArrayReader(data));	// note: modified 'extract' version 
 				data = lha.extract(null, function(done, total) {
-					console.log('Extracting LHA data: ' + (done / total * 100) + '% complete.');
+		//			console.log('Extracting LHA data: ' + (done / total * 100) + '% complete.');
 				});				
 			}
 
 			if(this.makeStr(data, 4, 8) != 'LeOnArD!') return null;
 			
+			var version= this.makeStr(data, 0, 3);
+			
+			if ((version == 'YMT') || (version == 'MIX')) {
+				console.log("pure sample replay file format not supported here: " + this.makeStr(data, 0, 4));
+				return null;				
+			} else if ((version != 'YM5') && (version != 'YM6')) {
+				console.log("old .ym file format not supported here: " + this.makeStr(data, 0, 4));
+				return null;				
+			}	
+	
 			this._ptr= 12;	// skip 12 bytes
 						
 			var frameCount= this.getIntBE(data);
-			var interleaved= this.getIntBE(data) & 1;	// FIXME: relevant to interpret YM rgister recordings
+			var interleaved= this.getIntBE(data) & 1;
 			var sampleCount= this.getShortBE(data);		// digi drum samples
 			
 			if (sampleCount) console.log("WARNING: YM digi drums not implemented");
@@ -166,9 +180,21 @@ YmConverter= (function(){ var $this = function (caller) {
 			for (var i= 0; i<frameCount; i++) {
 				frameData.push(new Array(16).fill(0));
 			}
-			for (var i= 0; i<14; i++) {		// i.e. 0 - 13
-				for (var j= 0; j<frameCount; j++) {
-					frameData[j][i] = data[headerSize + i * frameCount + j];
+			
+			var rowInSize= 16;
+			var rowOutSize= 14;	// note: the .ym extra features are not supported here 
+					
+			if (interleaved) {
+				for (var i= 0; i<rowOutSize; i++) {
+					for (var j= 0; j<frameCount; j++) {
+						frameData[j][i] = data[headerSize + i * frameCount + j];
+					}
+				}
+			} else {
+				for (var i= 0; i<rowOutSize; i++) {
+					for (var j= 0; j<frameCount; j++) {
+						frameData[j][i] = data[headerSize + j * rowInSize + i];
+					}
 				}
 			}
 			var textData= this.framesToText(frameData);
@@ -341,7 +367,9 @@ AyumiBackendAdapter= (function(){ var $this = function () {
 		},		
 		loadMusicData: function(sampleRate, path, filename, data, options) {
 			data= this.convert2text(filename, data);
-						
+			
+			if (data == null) return 1;
+			
 			var buf = this.Module._malloc(data.length);
 			this.Module.HEAPU8.set(data, buf);
 			
