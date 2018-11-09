@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+
 #include "ayumi.h"
 #include "load_text.h"
 
@@ -117,15 +119,17 @@ static uint32_t EMSCRIPTEN_KEEPALIVE loadSongFile(uint32_t sampleRate, void * in
 
 static int16_t getVoiceOutput(struct ayumi* ay, int voice) {
 	int noise = ay->noise & 1;
-	int envelope = ay->envelope;
-	
-	int out = (ay->channels[voice].tone | ay->channels[voice].t_off) & (noise | ay->channels[voice].n_off);
-	out *= ay->channels[voice].e_on ? envelope : ay->channels[voice].volume * 2 + 1;
-
-	// ignore stereo panning
-	double d= ay->dac_table[out];	// range is 0..1 with "center line" at 0	
 		
-	return d * 0xffff - 0x8000;
+	// note: in test-song for voices 1 + 3 it is just the volume that is displayed.. whereas for 
+	// voice 2 it initially shows the envelope..
+	int envelope = ay->channels[voice].e_on ? ay->envelope : ay->channels[voice].volume * 2 + 1; // 5-bit "envelope" 0 to 31
+		
+	int out = ((ay->channels[voice].tone | ay->channels[voice].t_off) & (noise | ay->channels[voice].n_off));	// 
+	double d= ay->dac_table[envelope];	// range is 0.0f .. 1.0f
+
+	out= out ? -(0x8000) : 0x7fff; 	// center
+	
+	return  round(d*out);
 }
 
 
