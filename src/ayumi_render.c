@@ -94,6 +94,7 @@ void set_default_text_data(struct text_data* t) {
   t->frame_rate = 50;
 }
 
+#ifndef EMSCRIPTEN	// to make it clear that this isn't used
 int main(int argc, char** argv) {
   int sample_count;
   float* sample_data;
@@ -138,3 +139,4 @@ int main(int argc, char** argv) {
   }
   return 0;
 }
+#endif

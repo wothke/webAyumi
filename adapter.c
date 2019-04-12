@@ -77,6 +77,8 @@ static int frame = 0;
 
 
 void setDefaultTextData(int sampleRate, struct text_data* t) {
+  if (t->frame_data) free(t->frame_data);	// cleanup last song
+  	
   memset(t, 0, sizeof(struct text_data));
   t->sample_rate = sampleRate;
   t->eqp_stereo_on = 0;

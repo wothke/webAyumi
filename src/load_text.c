@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include "load_text.h"
 
+#ifndef EMSCRIPTEN	// to make it clear that this isn't used
 static int load_file(const char* name, char** buffer, int* size) {
   FILE* f = fopen(name, "rb");
   if (f == NULL) {
@@ -28,7 +29,7 @@ static int load_file(const char* name, char** buffer, int* size) {
   (*buffer)[*size] = 0;
   return 1;
 }
-
+#endif
 static void skip(struct text_parser* p, int (*is_valid)(int)) {
   for (; p->index < p->size && is_valid(p->text[p->index]); p->index += 1) {
   }
@@ -90,6 +91,7 @@ static int is_not_space(int c) {
   return !isspace(c);
 }
 
+#ifndef EMSCRIPTEN	// to make it clear that this isn't used
 int load_text_file(const char* name, struct text_data* t) {
   int n;
   double f;
@@ -136,8 +138,7 @@ int load_text_file(const char* name, struct text_data* t) {
   free(p.text);
   return ok;
 }
-
-#ifdef EMSCRIPTEN
+#else
 int load_text_buffer(char* buf, int bufSize, struct text_data* t) {
   int n;
   double f;
