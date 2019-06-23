@@ -1,15 +1,17 @@
 # webAyumi
 
-Copyright (C) 2018 Juergen Wothke
+Copyright (C) 2019 Juergen Wothke
 
 This is a JavaScript/WebAudio plugin of "ayumi" . This plugin is designed to work with my generic WebAudio 
 ScriptProcessor music player (see separate project) but the API exposed by the lib can be used in any 
 JavaScript program (it should look familiar to anyone that has ever done some sort of music player plugin). 
 
 I mainly added this to fill a gap regarding the .fym format and to have a more light weight player for
-some of the formats that are already covered by spectreZX.
+some of the formats that are already covered by spectreZX. I added support for some "Fuxoft AY Language"
+based formats later.
 
-Files that can be played include: .text (the proprietary internal format used by ayumi), .fym, .ym, .psg, .afx
+Files that can be played include: .text (the proprietary internal format used by ayumi), .fym, .ym, 
+.psg, .afx, .ay (subtype ZXAYAMAD), .fxm. 
 
 
 Known limitations: The support for some of the formats seems to be somewhat limited (e.g. no digi drums
@@ -21,7 +23,7 @@ A live demo of this program can be found here: http://www.wothke.ch/webAyumi/
 ## Credits
 
 The project is based on: Peter Sovietov's https://github.com/true-grue/ayumi
-
+The used interpreter for "Fuxoft AY Language" is based on Pavel Dovgalyuk's https://github.com/Dovgalyuk/ArduinoFXMPlayer
 
 ## Project
 
@@ -52,6 +54,9 @@ TEXT format (not related to Vortex Tracker II format) used by the player:
 .fym: another YM register-recording format used here http://ym.mmcm.ru (2 chip configurations - see files marked as 'ts' - are not implemented)
 .psg: recorded in ZX Spectrum emulator 'Z80 Stealth' 
 .afx: sound effects from "AYFX Editor v0.6" (see https://shiru.untergrund.net/software.shtml)
+.fxm: original "Fuxoft AY Language" music format
+.ay (subtype: ZXAYAMAD): an Amiga specific variation of the "Fuxoft AY Language" music format
+
 
 ## Howto build
 

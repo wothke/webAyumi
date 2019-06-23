@@ -11,20 +11,37 @@
 
 #include "ayumi.h"
 #include "load_text.h"
+#include "emscripten.h"
 
-
-#ifdef EMSCRIPTEN
-#define EMSCRIPTEN_KEEPALIVE __attribute__((used))
-#else
-#define EMSCRIPTEN_KEEPALIVE
-#endif
-
+#include <stdint.h>
+/*
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
 typedef short int16_t;
 typedef unsigned short uint16_t;
 typedef signed long int32_t;
 typedef unsigned long uint32_t;
+*/
+
+extern void fxm_init(const uint8_t *fxm, uint32_t len);
+extern void fxm_loop();
+extern int*  fxm_get_registers();
+extern void fxm_get_songinfo(char* songName, char *songAuthor, int maxlen);
+
+#define MAX_INFO_LEN 128
+#define MAX_INFO_LINES 2
+static 	char 	_songName[MAX_INFO_LEN+1], 
+				_songAuthor[MAX_INFO_LEN+1];
+
+static char* _infoTexts[MAX_INFO_LINES];
+
+static void resetInfoText() {
+	_infoTexts[0]= _songName;
+	_infoTexts[1]= _songAuthor;
+
+	memset(_songName, 0, MAX_INFO_LEN);
+	memset(_songAuthor, 0, MAX_INFO_LEN);
+}
 
 
 #define WAVE_FORMAT_IEEE_FLOAT 3
@@ -69,12 +86,18 @@ void updateAyumiState(struct ayumi* ay, int* r) {
   }
 }
 
+// called FMX to update register settings
+void send_data(uint8_t reg, uint8_t value) {
+}
+
+
 static int sample_count;
 static float* sample_data;
 static struct text_data t;
 static struct ayumi ay;
 static int frame = 0;
 
+static uint32_t type;
 
 void setDefaultTextData(int sampleRate, struct text_data* t) {
   if (t->frame_data) free(t->frame_data);	// cleanup last song
@@ -87,21 +110,46 @@ void setDefaultTextData(int sampleRate, struct text_data* t) {
   t->clock_rate = 2000000;
   t->frame_rate = 50;
 }
+// callback used by fxm_init
+void set_song_params(int clock_rate, int frame_count, double frame_rate) {
+	t.clock_rate= clock_rate;
+	t.frame_count= frame_count;
+	t.frame_rate= frame_rate;
+}
 
-static uint32_t loadSongFile(uint32_t sampleRate, void * inBuffer, uint32_t inBufSize)  __attribute__((noinline));
-static uint32_t EMSCRIPTEN_KEEPALIVE loadSongFile(uint32_t sampleRate, void * inBuffer, uint32_t inBufSize) {
+static uint32_t loadSongFile(uint32_t sampleRate, void * inBuffer, uint32_t inBufSize, uint32_t filetype)  __attribute__((noinline));
+static uint32_t EMSCRIPTEN_KEEPALIVE loadSongFile(uint32_t sampleRate, void * inBuffer, uint32_t inBufSize, uint32_t filetype) {
+	type= filetype;	// type=0 means original "recorded data" approch
+	
 	uint8_t *inputFileBuffer= (uint8_t *)inBuffer;
 
 	setDefaultTextData(sampleRate, &t);
-	if(!load_text_buffer(inputFileBuffer, inBufSize, &t)) {
-		return 1;	// error
-	}
+	resetInfoText();
+	
+	if (type == 0) {	// replay recorded data
+		if(!load_text_buffer(inputFileBuffer, inBufSize, &t)) {
+			return 1;	// error
+		}
 
-	sample_count = (int) ((t.sample_rate / t.frame_rate) * t.frame_count);
-
-	if (sample_count == 0) {
-		return 1;	// no frames
+		sample_count = (int) ((t.sample_rate / t.frame_rate) * t.frame_count);
+		if (sample_count == 0) {
+			return 1;	// no frames
+		}
+	} else {		// use FXM player to generate soundchip settings
+		// just use the soundchip emu while feeding updates via FXM player
+		
+		t.is_ym = 0;
+		t.pan[0] = 0.8;
+		t.pan[1] = 0.2;
+		t.pan[2] = 0.5;
+		t.volume = 0.7;
+//		t.eqp_stereo_on = n;
+//		t.dc_filter_on = n;
+		
+		fxm_init(inputFileBuffer, inBufSize);
+		fxm_get_songinfo(_songName, _songAuthor, MAX_INFO_LEN);
 	}
+		
 	if (!ayumi_configure(&ay, t.is_ym, t.clock_rate, t.sample_rate)) {
 		return 1;	// ayumi_configure error (wrong sample rate?)
 	}
@@ -134,6 +182,10 @@ static int16_t getVoiceOutput(struct ayumi* ay, int voice) {
 	return  round(d*out);
 }
 
+static char** getTrackInfo() __attribute__((noinline));
+static char** EMSCRIPTEN_KEEPALIVE getTrackInfo() {
+	return (char**)_infoTexts;
+}
 
 static uint32_t setOptions(uint32_t debug)  __attribute__((noinline));
 static uint32_t EMSCRIPTEN_KEEPALIVE setOptions(uint32_t debug) {
@@ -158,8 +210,17 @@ static uint32_t EMSCRIPTEN_KEEPALIVE computeAudioSamples() {
 		while ((_numberOfSamplesRendered < NUM_SAMPLES) && (frame < t.frame_count)) {
 			isr_counter += isr_step;
 			if (isr_counter >= 1) {
-				isr_counter -= 1;				
-				updateAyumiState(&ay, &t.frame_data[frame * 16]);
+				isr_counter -= 1;
+				
+				int* regs;
+				if(type != 0) {
+					fxm_loop();
+					regs= fxm_get_registers();
+				} else {
+					regs= &t.frame_data[frame * 16]; // original Ayumi
+				}			
+				
+				updateAyumiState(&ay, regs);
 				frame += 1;
 			}
 			ayumi_process(&ay);

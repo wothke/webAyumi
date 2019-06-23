@@ -366,14 +366,17 @@ AyumiBackendAdapter= (function(){ var $this = function () {
 			this.trackComment= comment;
 		},		
 		loadMusicData: function(sampleRate, path, filename, data, options) {
-			data= this.convert2text(filename, data);
+			this.type= filename.endsWith(".ay") || filename.endsWith(".fxm"); // AMAD or Fuxoft files
 			
+			if (!this.type)
+				data= this.convert2text(filename, data);	// original recorded data approach
+				
 			if (data == null) return 1;
 			
 			var buf = this.Module._malloc(data.length);
 			this.Module.HEAPU8.set(data, buf);
 			
-			var ret = this.Module.ccall('loadSongFile', 'number', ['number', 'number', 'number'], [sampleRate, buf, data.length]);
+			var ret = this.Module.ccall('loadSongFile', 'number', ['number', 'number', 'number', 'number'], [sampleRate, buf, data.length, this.type]);
 			this.Module._free(buf);
 
 			return ret;			
@@ -400,10 +403,20 @@ AyumiBackendAdapter= (function(){ var $this = function () {
 					};
 		},
 		updateSongInfo: function(filename, result) {
-			// song infos are no available in ayumi's TEXT format
-			// so the info is extracted here while converting the input
-			result.songName= this.trackName;			
-			result.songAuthor= this.authorName;
+			if (this.type) {
+				var numAttr= 2;
+				var ret = this.Module.ccall('getTrackInfo', 'number');
+
+				var array = this.Module.HEAP32.subarray(ret>>2, (ret>>2)+numAttr);
+				result.songName= this.Module.Pointer_stringify(array[0]);
+				if (!result.songName.length) result.songName= filename.replace(/^.*[\\\/]/, '').split('.').slice(0, -1).join('.');
+				result.songAuthor= this.Module.Pointer_stringify(array[1]);		
+			} else {
+				// song infos are no available in ayumi's TEXT format
+				// so the info is extracted here while converting the input
+				result.songName= this.trackName;			
+				result.songAuthor= this.authorName;
+			}
 		},
 
 		
