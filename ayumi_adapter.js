@@ -366,7 +366,7 @@ AyumiBackendAdapter= (function(){ var $this = function () {
 			this.trackComment= comment;
 		},		
 		loadMusicData: function(sampleRate, path, filename, data, options) {
-			this.type= filename.endsWith(".ay") || filename.endsWith(".fxm"); // AMAD or Fuxoft files
+			this.type= filename.endsWith(".ay") || filename.endsWith(".amad") || filename.endsWith(".fxm"); // AMAD or Fuxoft files
 			
 			if (!this.type)
 				data= this.convert2text(filename, data);	// original recorded data approach
